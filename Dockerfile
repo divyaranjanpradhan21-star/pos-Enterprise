@@ -49,11 +49,14 @@ COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy built artifacts
+# Copy built artifacts & prisma schema
 COPY --from=builder /app/packages/domain/dist ./packages/domain/dist
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Generate production Prisma Client
+RUN pnpm --filter @pos/db exec prisma generate --schema=./prisma/schema.prisma
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
