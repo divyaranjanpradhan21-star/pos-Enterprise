@@ -28,7 +28,7 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 
 # Generate Prisma Client and build packages
-RUN npx prisma generate --schema=./packages/db/prisma/schema.prisma
+RUN pnpm --filter @pos/db exec prisma generate --schema=./prisma/schema.prisma
 RUN pnpm --filter @pos/domain build
 RUN pnpm --filter @pos/db build
 RUN pnpm --filter @pos/api build
@@ -56,7 +56,7 @@ COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Generate production Prisma Client
-RUN npx prisma generate --schema=./packages/db/prisma/schema.prisma
+RUN pnpm --filter @pos/db exec prisma generate --schema=./prisma/schema.prisma
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
