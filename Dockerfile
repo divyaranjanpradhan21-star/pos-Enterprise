@@ -2,8 +2,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@12
+# Install openssl & pnpm
+RUN apk add --no-cache openssl && npm install -g pnpm@12
 
 # Copy workspace manifests and lockfile
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -18,7 +18,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g pnpm@12
+RUN apk add --no-cache openssl && npm install -g pnpm@12
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/domain/node_modules ./packages/domain/node_modules
@@ -39,7 +39,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN npm install -g pnpm@12
+RUN apk add --no-cache openssl && npm install -g pnpm@12
 
 # Only production deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
