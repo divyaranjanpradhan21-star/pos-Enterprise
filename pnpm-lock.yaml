@@ -297,13 +297,13 @@ importers:
       '@prisma/client':
         specifier: ^5.13.0
         version: 5.22.0(prisma@5.22.0)
+      prisma:
+        specifier: ^5.13.0
+        version: 5.22.0
     devDependencies:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.43
-      prisma:
-        specifier: ^5.13.0
-        version: 5.22.0
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
