@@ -1,0 +1,484 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------
+// 1. Tenancy & Organization
+// ---------------------------------------------------------
+
+model Tenant {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String                 @db.VarChar(255)
+  slug                  String                 @unique @db.VarChar(100)
+  currency              String                 @default("INR") @db.VarChar(10)
+  taxIdentifier         String?                @map("tax_identifier") @db.VarChar(100)
+  isActive              Boolean                @default(true) @map("is_active")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  branches              Branch[]
+  users                 User[]
+  roles                 Role[]
+  floors                Floor[]
+  tables                RestaurantTable[]
+  categories            Category[]
+  menuItems             MenuItem[]
+  modifiers             Modifier[]
+  ingredients           Ingredient[]
+  orders                Order[]
+  kitchenOrders         KitchenOrder[]
+  invoiceCounters       InvoiceCounter[]
+  invoices              Invoice[]
+  payments              Payment[]
+  inventoryTransactions InventoryTransaction[]
+  outbox                TransactionalOutbox[]
+  auditLogs             AuditLog[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  name                  String                 @db.VarChar(255)
+  code                  String                 @db.VarChar(50)
+  address               String                 @db.Text
+  phone                 String?                @db.VarChar(50)
+  isActive              Boolean                @default(true) @map("is_active")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users                 User[]
+  floors                Floor[]
+  tables                RestaurantTable[]
+  categories            Category[]
+  orders                Order[]
+  kitchenOrders         KitchenOrder[]
+  invoiceCounter        InvoiceCounter?
+  invoices              Invoice[]
+  payments              Payment[]
+  inventoryTransactions InventoryTransaction[]
+  auditLogs             AuditLog[]
+
+  @@unique([tenantId, code], name: "uq_branch_code")
+  @@map("branches")
+}
+
+// ---------------------------------------------------------
+// 2. Identity & Access Management (RBAC)
+// ---------------------------------------------------------
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  branchId     String?    @map("branch_id") @db.Uuid
+  email        String     @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  fullName     String     @map("full_name") @db.VarChar(255)
+  phone        String?    @db.VarChar(50)
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch       Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  userRoles    UserRole[]
+  auditLogs    AuditLog[]
+
+  @@unique([tenantId, email], name: "uq_user_email")
+  @@map("users")
+}
+
+model Role {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  name            String           @db.VarChar(100)
+  code            String           @db.VarChar(50)
+  description     String?          @db.Text
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code], name: "uq_role_code")
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String           @unique @db.VarChar(100)
+  name            String           @db.VarChar(100)
+  module          String           @db.VarChar(50)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ---------------------------------------------------------
+// 3. Floor & Table Management
+// ---------------------------------------------------------
+
+model Floor {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String            @map("tenant_id") @db.Uuid
+  branchId  String            @map("branch_id") @db.Uuid
+  name      String            @db.VarChar(100)
+  sortOrder Int               @default(0) @map("sort_order")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tables    RestaurantTable[]
+
+  @@map("floors")
+}
+
+model RestaurantTable {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  floorId        String   @map("floor_id") @db.Uuid
+  tableNumber    String   @map("table_number") @db.VarChar(50)
+  capacity       Int      @default(4)
+  status         String   @default("FREE") @db.VarChar(50) // FREE, BUSY, RESERVED, BILLED
+  currentOrderId String?  @map("current_order_id") @db.Uuid
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  floor          Floor    @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  orders         Order[]
+
+  @@unique([tenantId, branchId, tableNumber], name: "uq_table_number")
+  @@map("restaurant_tables")
+}
+
+// ---------------------------------------------------------
+// 4. Menu, Modifiers, Ingredients & Recipes
+// ---------------------------------------------------------
+
+model Category {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  branchId  String?    @map("branch_id") @db.Uuid
+  name      String     @db.VarChar(255)
+  sortOrder Int        @default(0) @map("sort_order")
+  isActive  Boolean    @default(true) @map("is_active")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch?    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  categoryId   String        @map("category_id") @db.Uuid
+  name         String        @db.VarChar(255)
+  description  String?       @db.Text
+  sku          String?       @db.VarChar(100)
+  basePrice    Decimal       @map("base_price") @db.Decimal(12, 2)
+  taxRate      Decimal       @default(5.00) @map("tax_rate") @db.Decimal(5, 2)
+  taxInclusive Boolean       @default(false) @map("tax_inclusive")
+  station      String        @default("KITCHEN") @db.VarChar(50)
+  isAvailable  Boolean       @default(true) @map("is_available")
+  version      Int           @default(1)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants     MenuVariant[]
+  recipes      Recipe[]
+  orderItems   OrderItem[]
+
+  @@map("menu_items")
+}
+
+model MenuVariant {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  menuItemId String      @map("menu_item_id") @db.Uuid
+  name       String      @db.VarChar(100)
+  priceDelta Decimal     @default(0.00) @map("price_delta") @db.Decimal(12, 2)
+
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  recipes    Recipe[]
+  orderItems OrderItem[]
+
+  @@map("menu_variants")
+}
+
+model Modifier {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  name     String  @db.VarChar(100)
+  price    Decimal @default(0.00) @db.Decimal(12, 2)
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("modifiers")
+}
+
+model Ingredient {
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String                 @map("tenant_id") @db.Uuid
+  name         String                 @db.VarChar(255)
+  unit         String                 @db.VarChar(50) // kg, g, l, ml, pcs
+  reorderLevel Decimal                @default(10.00) @map("reorder_level") @db.Decimal(12, 2)
+  currentStock Decimal                @default(0.00) @map("current_stock") @db.Decimal(12, 2)
+  costPerUnit  Decimal                @default(0.0000) @map("cost_per_unit") @db.Decimal(14, 4)
+  version      Int                    @default(1)
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipes      Recipe[]
+  transactions InventoryTransaction[]
+
+  @@map("ingredients")
+}
+
+model Recipe {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  menuItemId       String       @map("menu_item_id") @db.Uuid
+  variantId        String?      @map("variant_id") @db.Uuid
+  ingredientId     String       @map("ingredient_id") @db.Uuid
+  quantityRequired Decimal      @map("quantity_required") @db.Decimal(12, 4)
+
+  menuItem         MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  variant          MenuVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  ingredient       Ingredient   @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@map("recipes")
+}
+
+// ---------------------------------------------------------
+// 5. Orders, KOT/KDS, Billing & Invoicing
+// ---------------------------------------------------------
+
+model Order {
+  id             String           @id @db.Uuid // UUIDv7 client or server generated
+  tenantId       String           @map("tenant_id") @db.Uuid
+  branchId       String           @map("branch_id") @db.Uuid
+  orderType      String           @map("order_type") @db.VarChar(50) // DINE_IN, TAKEAWAY, DELIVERY, ONLINE
+  tableId        String?          @map("table_id") @db.Uuid
+  status         String           @default("DRAFT") @db.VarChar(50)
+  subtotal       Decimal          @default(0.00) @db.Decimal(12, 2)
+  discountAmount Decimal          @default(0.00) @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount      Decimal          @default(0.00) @map("tax_amount") @db.Decimal(12, 2)
+  serviceCharge  Decimal          @default(0.00) @map("service_charge") @db.Decimal(12, 2)
+  tipAmount      Decimal          @default(0.00) @map("tip_amount") @db.Decimal(12, 2)
+  roundOff       Decimal          @default(0.00) @map("round_off") @db.Decimal(12, 2)
+  totalAmount    Decimal          @default(0.00) @map("total_amount") @db.Decimal(12, 2)
+  version        Int              @default(1)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table          RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  kitchenOrders  KitchenOrder[]
+  invoices       Invoice[]
+  payments       Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId      String        @map("order_id") @db.Uuid
+  menuItemId   String        @map("menu_item_id") @db.Uuid
+  variantId    String?       @map("variant_id") @db.Uuid
+  quantity     Int
+  unitPrice    Decimal       @map("unit_price") @db.Decimal(12, 2)
+  taxAmount    Decimal       @map("tax_amount") @db.Decimal(12, 2)
+  subtotal     Decimal       @db.Decimal(12, 2)
+  notes        String?       @db.Text
+  status       String        @default("PENDING") @db.VarChar(50)
+
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem      @relation(fields: [menuItemId], references: [id])
+  variant      MenuVariant?  @relation(fields: [variantId], references: [id])
+  kitchenItems KitchenItem[]
+
+  @@map("order_items")
+}
+
+model KitchenOrder {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  branchId     String        @map("branch_id") @db.Uuid
+  orderId      String        @map("order_id") @db.Uuid
+  kotNumber    String        @map("kot_number") @db.VarChar(50)
+  station      String        @default("KITCHEN") @db.VarChar(50)
+  status       String        @default("NEW") @db.VarChar(50) // NEW, ACCEPTED, PREPARING, READY, SERVED
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items        KitchenItem[]
+
+  @@map("kitchen_orders")
+}
+
+model KitchenItem {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kitchenOrderId String       @map("kitchen_order_id") @db.Uuid
+  orderItemId    String       @map("order_item_id") @db.Uuid
+  quantity       Int
+  status         String       @default("PENDING") @db.VarChar(50)
+  notes          String?      @db.Text
+
+  kitchenOrder   KitchenOrder @relation(fields: [kitchenOrderId], references: [id], onDelete: Cascade)
+  orderItem      OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@map("kitchen_items")
+}
+
+model InvoiceCounter {
+  branchId      String   @id @map("branch_id") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  year          Int
+  prefix        String   @default("INV") @db.VarChar(20)
+  currentNumber BigInt   @default(0) @map("current_number")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_counters")
+}
+
+model Invoice {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  orderId        String    @map("order_id") @db.Uuid
+  invoiceNumber  String    @map("invoice_number") @db.VarChar(100)
+  subtotal       Decimal   @db.Decimal(12, 2)
+  discountAmount Decimal   @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount      Decimal   @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount    Decimal   @map("total_amount") @db.Decimal(12, 2)
+  calcSnapshot   Json      @map("calc_snapshot")
+  status         String    @default("ISSUED") @db.VarChar(50) // ISSUED, VOIDED, REFUNDED
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch         Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payments       Payment[]
+
+  @@unique([tenantId, invoiceNumber], name: "uq_invoice_number")
+  @@map("invoices")
+}
+
+model Payment {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  orderId         String   @map("order_id") @db.Uuid
+  invoiceId       String?  @map("invoice_id") @db.Uuid
+  paymentMethod   String   @map("payment_method") @db.VarChar(50) // CASH, CARD, UPI, WALLET
+  amount          Decimal  @db.Decimal(12, 2)
+  status          String   @default("COMPLETED") @db.VarChar(50)
+  referenceNumber String?  @map("reference_number") @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@map("payments")
+}
+
+// ---------------------------------------------------------
+// 6. Append-Only Ledgers, Outbox & Audit
+// ---------------------------------------------------------
+
+model InventoryTransaction {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String     @map("tenant_id") @db.Uuid
+  branchId        String     @map("branch_id") @db.Uuid
+  ingredientId    String     @map("ingredient_id") @db.Uuid
+  quantityDelta   Decimal    @map("quantity_delta") @db.Decimal(12, 4)
+  balanceAfter    Decimal    @map("balance_after") @db.Decimal(12, 4)
+  transactionType String     @map("transaction_type") @db.VarChar(50)
+  referenceId     String?    @map("reference_id") @db.Uuid
+  notes           String?    @db.Text
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch          Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@map("inventory_transactions")
+}
+
+model TransactionalOutbox {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  aggregateType String    @map("aggregate_type") @db.VarChar(100)
+  aggregateId   String    @map("aggregate_id") @db.VarChar(100)
+  eventType     String    @map("event_type") @db.VarChar(100)
+  payload       Json
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("transactional_outbox")
+}
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String?  @map("branch_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String   @map("resource_type") @db.VarChar(100)
+  resourceId   String   @map("resource_id") @db.VarChar(100)
+  oldValues    Json?    @map("old_values")
+  newValues    Json?    @map("new_values")
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch       Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

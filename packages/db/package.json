@@ -1,0 +1,26 @@
+{
+  "name": "@pos/db",
+  "version": "1.0.0",
+  "description": "Prisma schema, PostgreSQL Row Level Security (RLS) migrations, and transactional client",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prisma:generate": "prisma generate",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "prisma": "^5.13.0",
+    "typescript": "^5.4.5"
+  }
+}

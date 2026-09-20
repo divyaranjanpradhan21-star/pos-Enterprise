@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-white/10;
+  }
+
+  body {
+    @apply bg-surface-950 text-slate-100 font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20;
+  }
+}
+
+@layer components {
+  /* === Buttons === */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+           transition-all duration-150 cursor-pointer select-none
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none
+           active:scale-95;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-400 shadow-glow-brand;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-slate-300 hover:bg-white/5 hover:text-white;
+  }
+  .btn-danger {
+    @apply btn bg-danger/10 text-red-400 hover:bg-danger/20 border border-danger/20;
+  }
+  .btn-success {
+    @apply btn bg-success/10 text-emerald-400 hover:bg-success/20 border border-emerald-500/20;
+  }
+  .btn-lg {
+    @apply px-6 py-3 text-base rounded-xl;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-xs rounded-md;
+  }
+
+  /* === Cards === */
+  .card {
+    @apply bg-surface-800 rounded-xl border border-white/5 shadow-card;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-white/10 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  /* === Inputs === */
+  .input {
+    @apply w-full bg-surface-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100
+           placeholder-slate-500 outline-none
+           focus:border-brand-500 focus:ring-1 focus:ring-brand-500
+           transition-colors duration-150;
+  }
+
+  /* === Badges === */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-free      { @apply badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20; }
+  .badge-busy      { @apply badge bg-orange-500/10 text-orange-400 border border-orange-500/20; }
+  .badge-reserved  { @apply badge bg-purple-500/10 text-purple-400 border border-purple-500/20; }
+  .badge-billed    { @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20; }
+  .badge-draft     { @apply badge bg-slate-500/10 text-slate-400 border border-slate-500/20; }
+  .badge-placed    { @apply badge bg-yellow-500/10 text-yellow-400 border border-yellow-500/20; }
+  .badge-preparing { @apply badge bg-orange-500/10 text-orange-400 border border-orange-500/20; }
+  .badge-ready     { @apply badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20; }
+  .badge-served    { @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20; }
+
+  /* === Sidebar nav item === */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-slate-400 hover:text-white hover:bg-white/5
+           transition-all duration-150 cursor-pointer;
+  }
+  .nav-item-active {
+    @apply nav-item text-white bg-brand-500/10 border border-brand-500/20 text-brand-400;
+  }
+
+  /* === KDS Card === */
+  .kds-card {
+    @apply card p-4 flex flex-col gap-3 border-l-4;
+  }
+  .kds-card-pending   { @apply kds-card border-l-yellow-500; }
+  .kds-card-preparing { @apply kds-card border-l-orange-500 bg-orange-500/5; }
+  .kds-card-ready     { @apply kds-card border-l-emerald-500 bg-emerald-500/5; }
+
+  /* === Shimmer skeleton === */
+  .skeleton {
+    @apply rounded bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%] animate-shimmer;
+  }
+}
+
+@layer utilities {
+  .text-money { @apply font-mono tabular-nums; }
+  .scrollbar-thin { scrollbar-width: thin; }
+}

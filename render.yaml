@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: pos-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        sync: false   # set in Render dashboard (Supabase pooler connection string)
+      - key: SUPABASE_URL
+        value: https://hploabbozxurvwxhurtj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false   # set in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "8h"
+    autoDeploy: true
+    branch: main
