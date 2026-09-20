@@ -4,9 +4,13 @@ import { PrismaClient } from '@pos/db';
 @Injectable()
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
-    // Only connect if not in disconnected mock mode
     if (process.env['DATABASE_URL']) {
-      await this.$connect();
+      try {
+        await this.$connect();
+        console.log('✅ Connected to Supabase PostgreSQL database');
+      } catch (error) {
+        console.warn('⚠️ Database connection warning during startup:', (error as Error).message);
+      }
     }
   }
 
