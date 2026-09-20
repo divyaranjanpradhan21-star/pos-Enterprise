@@ -40,7 +40,7 @@ export class TableService {
         });
 
         if (tables.length > 0) {
-          return tables.map((t) => ({
+          return tables.map((t: any) => ({
             id: t.id,
             floorId: t.floorId,
             floorName: t.floor.name,

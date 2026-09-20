@@ -19,7 +19,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
    * session parameter `app.current_tenant_id` set to the verified tenantId.
    */
   async withTenant<T>(tenantId: string, fn: (prisma: PrismaClient) => Promise<T>): Promise<T> {
-    return this.$transaction(async (tx) => {
+    return this.$transaction(async (tx: any) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
       return fn(tx as unknown as PrismaClient);
     });

@@ -155,7 +155,7 @@ export class MenuService {
           orderBy: { sortOrder: 'asc' },
         });
         if (categories.length > 0) {
-          return categories.map((c) => ({
+          return categories.map((c: any) => ({
             id: c.id,
             name: c.name,
             sortOrder: c.sortOrder,
@@ -182,7 +182,7 @@ export class MenuService {
           },
         });
         if (items.length > 0) {
-          return items.map((i) => ({
+          return items.map((i: any) => ({
             id: i.id,
             categoryId: i.categoryId,
             name: i.name,
@@ -192,7 +192,7 @@ export class MenuService {
             taxInclusive: i.taxInclusive,
             station: i.station,
             isAvailable: i.isAvailable,
-            variants: i.variants.map((v) => ({
+            variants: i.variants.map((v: any) => ({
               id: v.id,
               name: v.name,
               priceDelta: v.priceDelta.toString(),
