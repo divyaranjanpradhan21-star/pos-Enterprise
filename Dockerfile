@@ -27,7 +27,8 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
 COPY . .
 
-# Build domain, then db, then api
+# Generate Prisma Client and build packages
+RUN pnpm --filter @pos/db exec prisma generate --schema=./prisma/schema.prisma
 RUN pnpm --filter @pos/domain build
 RUN pnpm --filter @pos/db build
 RUN pnpm --filter @pos/api build

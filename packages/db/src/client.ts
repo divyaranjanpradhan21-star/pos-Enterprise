@@ -24,7 +24,7 @@ export class DatabaseClient {
     const prisma = DatabaseClient.getInstance();
 
     // Use interactive transaction to bind session variable locally
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: any) => {
       // Set the session variable local to this transaction
       await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
       return operation(tx as unknown as PrismaClient);
